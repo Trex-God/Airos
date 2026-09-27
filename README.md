@@ -1,6 +1,6 @@
 # AI-ROS
 
-AI Research Operating System is a secure SaaS workspace for Gemini-powered
+AI Research Operating System is a secure SaaS workspace for different ai-powered
 agents serving freelancers, founders, and creators.
 
 ## Current Status
