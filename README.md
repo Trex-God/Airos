@@ -107,8 +107,3 @@ Database setup: apply `infrastructure/supabase-migration.sql` and `infrastructur
 - Stripe verifies the raw webhook body before processing.
 - Client responses never include stack traces.
 
-## Documentation
-
-- `AIROS_TECHNICAL_SPEC.md` — full technical specification
-- `AIROS_AI_Prompt_Guide.md` — agent prompt design guide
-- `AIROS_7Day_Build_Plan.docx` — original build plan
