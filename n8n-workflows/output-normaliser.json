@@ -1,0 +1,171 @@
+{
+  "name": "Output Normaliser",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "cb6fd6d7-01bf-4e7c-a190-755cb99046e1",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "agent": "conversationalAgent",
+        "promptType": "define",
+        "text": "={{ $json.raw_output }}",
+        "hasOutputParser": false,
+        "options": {
+          "systemMessage": "You are a professional editor. Clean this text:\n1. Fix formatting and markdown structure\n2. Remove AI self-references ('As an AI...', 'As a language model...')\n3. Remove unnecessary disclaimers and caveats\n4. Ensure professional tone appropriate for business use\n5. Preserve ALL factual content exactly - do not add or remove facts\n6. Return ONLY the cleaned output, nothing else",
+          "maxIterations": 1,
+          "returnIntermediateSteps": false
+        }
+      },
+      "id": "1061017f-83e8-462f-a3cb-b8e306589bcd",
+      "name": "Clean Raw Output",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        300,
+        300
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {
+          "temperature": 0.1,
+          "maxOutputTokens": 8192,
+          "topK": 32,
+          "topP": 1
+        }
+      },
+      "id": "b9ffcaa4-1ded-4296-a582-0c3dd74bbaeb",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        300,
+        540
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "GEMINI_API_CREDENTIAL_ID",
+          "name": "Gemini API"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "aa8610eb-6493-412e-b4d7-5101c77ce72a",
+              "name": "normalised_output",
+              "value": "={{ $json.output || $json.text || $json.response || $json.result || $node[\"Execute Workflow Trigger\"].json.raw_output || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "3ccf15a9-1a54-4867-afac-8256f4b14de1",
+      "name": "Package Normalised Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        600,
+        300
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {},
+      "id": "19d70a40-6442-47ab-a92e-79197369f842",
+      "name": "Respond to Execute Workflow",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        880,
+        300
+      ],
+      "continueOnFail": true
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Clean Raw Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Raw Output": {
+      "main": [
+        [
+          {
+            "node": "Package Normalised Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Clean Raw Output",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Package Normalised Output": {
+      "main": [
+        [
+          {
+            "node": "Respond to Execute Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "timezone": "UTC"
+  },
+  "versionId": "ce7904f4-c8db-4509-ac09-a65b169e3494",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "templateVersion": "airos-output-normaliser-v1",
+    "model": "gemini-2.0-flash",
+    "temperature": 0.1,
+    "failureFallback": "raw_output"
+  },
+  "tags": []
+}

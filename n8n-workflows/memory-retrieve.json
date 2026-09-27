@@ -1,0 +1,259 @@
+{
+  "name": "Memory Retrieve",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "0f1adf6b-6a58-4e6e-90a0-1f4b2d6f0a01",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent",
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "={{ $env.GEMINI_API_KEY }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { content: { parts: [{ text: $json.query_text }] } } }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "1e4226b4-640e-466d-9f13-b0bf2a8c7f99",
+      "name": "Generate Query Embedding",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        280,
+        300
+      ],
+      "notes": "Gemini returns embedding.values; downstream nodes treat that array as embedding_values."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/rpc/match_memories' }}",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { query_embedding: $json.embedding_values ?? $json.embedding?.values ?? [], match_user_id: $node[\"Execute Workflow Trigger\"].json.user_id, match_count: 5 } }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "b41d0552-269c-40e2-b371-3f4365689615",
+      "name": "Vector Similarity Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        560,
+        300
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "a8469d4f-ae54-4c7f-9ca0-c58bd914394d",
+              "leftValue": "={{ Array.isArray($json) ? $json.length : ($json.id && $json.content ? 1 : (Array.isArray($json.data) ? $json.data.length : 0)) }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "larger"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a03722de-3cb7-4f70-bcdd-ce8fbe44733f",
+      "name": "Handle Empty Results",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        840,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst memories = items.flatMap((item) => {\n  const value = item.json;\n  if (Array.isArray(value)) return value;\n  if (Array.isArray(value.data)) return value.data;\n  if (value && value.id && value.content) return [value];\n  return [];\n});\n\nconst memoryContext = memories\n  .slice(0, 5)\n  .map((memory) => `[MEMORY: ${memory.category}] ${memory.content}`)\n  .join('\\n');\n\nreturn [\n  {\n    json: {\n      memory_context: memoryContext,\n    },\n  },\n];"
+      },
+      "id": "e5eb6e51-123f-462c-bfc2-e4806e251698",
+      "name": "Format Memory Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "63fd6715-fb85-42ec-9008-c76b86b832e1",
+              "name": "memory_context",
+              "value": "={{ $json.memory_context ?? '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "d0fb3c8e-a73c-4265-a1a8-94c90ea48c71",
+      "name": "Respond to Execute Workflow",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1400,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Generate Query Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Query Embedding": {
+      "main": [
+        [
+          {
+            "node": "Vector Similarity Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vector Similarity Search": {
+      "main": [
+        [
+          {
+            "node": "Handle Empty Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Empty Results": {
+      "main": [
+        [
+          {
+            "node": "Format Memory Context",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Execute Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Memory Context": {
+      "main": [
+        [
+          {
+            "node": "Respond to Execute Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "timezone": "UTC"
+  },
+  "versionId": "5e7c21f7-f7bb-44d3-ae3c-51df3bd64988",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "templateVersion": "airos-memory-retrieve-v1",
+    "sql_function_comment": "CREATE OR REPLACE FUNCTION match_memories(\n  query_embedding vector(768),\n  match_user_id text,\n  match_count int DEFAULT 5\n)\nRETURNS TABLE (id uuid, content text, category text, importance float, similarity float)\nLANGUAGE plpgsql AS $$\nBEGIN\n  RETURN QUERY\n  SELECT m.id, m.content, m.category, m.importance,\n    1 - (m.embedding <=> query_embedding) AS similarity\n  FROM memory_items m\n  WHERE m.user_id = match_user_id\n  ORDER BY m.embedding <=> query_embedding\n  LIMIT match_count;\nEND;\n$$;"
+  },
+  "tags": []
+}

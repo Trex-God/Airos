@@ -1,0 +1,52 @@
+# Secrets and environment files
+.env
+.env.*
+*.env
+secrets/
+gcp-key.json
+service-account*.json
+*.pem
+*.key
+*.cert
+
+# Node and build output
+node_modules/
+.next/
+out/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Docker and deployment output
+.docker/
+volumes/
+.vercel/
+.turbo/
+
+# Logs and test artifacts
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.nyc_output/
+
+# Editor and operating-system files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+*.swp
+*.swo
+*~
+
+# Local development cache
+frontend/.next-local/
+
+# Local Git history archives
+.git-archives/
+
+# Local environment migration backup
+_migration/windows-environment-backup.json
